@@ -3,6 +3,8 @@ package com.mygdx.game;
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
+import com.badlogic.gdx.audio.Music;
+import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Texture;
@@ -14,30 +16,30 @@ import java.awt.*;
 import java.util.Random;
 
 public class theBucket extends ApplicationAdapter {
-
 	Random random;
 	SpriteBatch batch;
-
 	BitmapFont font;
+	Texture bucket, gota, fondo, start, gameOver;
+
+	// Sonidos     //
+	Sound dropWater;
+	Sound gOver;
+	Sound fallo;
+	Music rainMusic;
 
 	int puntuacion = 0;
 	int vidas = 5;
-
-	Texture bucket, gota, fondo, start, gameOver;
-
 	//Objetos
 	float bucketX;
 	float bucketY;
 
 	float gotaX, gotaY;
-	float gota2X, gota2Y;
 
 	//MEJORA, por cada array gotaX, gotaY [2]
 /*
-	float[] gX = new float[2];
-	float[] gY = new float[2];
+  float[] gX = new float[2];
+  float[] gY = new float[2];
 */
-
 	float time;
 
 	int pantalla = 0;
@@ -54,6 +56,11 @@ public class theBucket extends ApplicationAdapter {
 		//fuenteLetra
 		font = new BitmapFont(Gdx.files.internal("letra.fnt"), Gdx.files.internal("letra.png"),false);
 
+		//cargamos dropwater efecto y rainbackground music
+		dropWater = Gdx.audio.newSound(Gdx.files.internal("dropWater.mp3"));
+		fallo = Gdx.audio.newSound(Gdx.files.internal("fallo.mp3"));
+		gOver = Gdx.audio.newSound(Gdx.files.internal("gOver.mp3"));
+		rainMusic = Gdx.audio.newMusic(Gdx.files.internal("rainMusic.mp3"));
 		//texturas
 		bucket = new Texture("bucket.png");
 		gota = new Texture("gota.png");
@@ -65,25 +72,28 @@ public class theBucket extends ApplicationAdapter {
 	}
 	void restartGame(){
 		//positionBucket
-			bucketX = 300;
-			bucketY = 10;
+		bucketX = 300;
+		bucketY = 10;
 		//positionGota
-			gotaY = 600;
-			gotaX = random.nextInt(400);
-			gota2Y = gotaY + 300;
-			gota2X = random.nextInt(400);
+		gotaY = 600;
+
 		//vidas
-			vidas = 5;
+		vidas = 5;
 		//puntuacion
-			puntuacion = 0;
+		puntuacion = 0;
 		//tiempo
-			time = 0;
+		time = 0;
+		//sound
+		fallo.pause();
 	}
 
 	//MainLoop
 	@Override
 	public void render() {
+
 		if (pantalla == 1) {
+			//Empieza la lluvia
+			rainMusic.play();
 			//tiempo
 			time += Gdx.graphics.getDeltaTime();
 
@@ -107,24 +117,28 @@ public class theBucket extends ApplicationAdapter {
 			if (puntuacion >= 3 || puntuacion >= 10){
 				gotaY -= 4;
 			}
-			//Comprobar TOCADO(pruebas)
 
-			if (gotaY <= bucketY + 58 && (gotaX <= bucketX + 20 && gotaX >= bucketX - 20)) {
-					//pruebas
-					System.out.println("TOCADO");
-					System.out.println("esto es Gota : " + gotaX + "   " + gotaY);
-					System.out.println("esto es Bucket : " + bucketX + "   " + bucketY);
-					drawAgain();
-					puntuacion++;
-			 		chocado = true;
+			//Comprobar TOCADO(pruebas)
+			if (gotaY <= bucketY + 58 && (gotaX <= bucketX + 50 && gotaX >= bucketX - 20)) {
+				//pruebas
+				System.out.println("TOCADO");
+				System.out.println("esto es Gota : " + gotaX + "   " + gotaY);
+				System.out.println("esto es Bucket : " + bucketX + "   " + bucketY);
+				drawAgain();
+				puntuacion++;
+				chocado = true;
+				dropWater.play();
 			}
 
 			// Si la gota sale de la pantalla, vuelve a la pos 430Y y restamos una vida.
 			if (gotaY < -60) {
 				drawAgain();
 				vidas--;
+				fallo.play();
 			} else if (vidas == 0){
 				pantalla = 2;
+				fallo.stop();
+				gOver.play();
 			}
 
 			//Mantener el bucket dentro de los limites de la pantalla.
@@ -161,6 +175,8 @@ public class theBucket extends ApplicationAdapter {
 			batch.end();
 		} else {
 			//PantallaGameOver
+			rainMusic.stop();
+
 			if (Gdx.input.isKeyJustPressed(Input.Keys.ANY_KEY)) {
 				pantalla = 1;
 				restartGame();
