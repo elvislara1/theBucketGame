@@ -10,6 +10,8 @@ import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.sun.org.apache.bcel.internal.generic.IF_ACMPEQ;
+import jdk.tools.jaotc.ELFMacroAssembler;
 
 import javax.swing.*;
 import java.awt.*;
@@ -21,7 +23,7 @@ public class theBucket extends ApplicationAdapter {
 	BitmapFont font;
 	Texture bucket, gota, fondo, start, gameOver;
 
-	// Sonidos     //
+	// Sonidos //
 	Sound dropWater;
 	Sound gOver;
 	Sound fallo;
@@ -29,23 +31,21 @@ public class theBucket extends ApplicationAdapter {
 
 	int puntuacion = 0;
 	int vidas = 5;
+
 	//Objetos
 	float bucketX;
 	float bucketY;
 
-	float gotaX, gotaY;
+	//Array con dos gotas
+	float[] gX = new float[2];
+	float[] gY = new float[2];
 
-	//MEJORA, por cada array gotaX, gotaY [2]
-/*
-  float[] gX = new float[2];
-  float[] gY = new float[2];
-*/
 	float time;
 
 	int pantalla = 0;
-	int veces = 0;
-
-	boolean chocado;
+	static final int VELOCIDAD_NIVEL_1 = 5;
+	static final int VELOCIDAD_NIVEL_2 = 9;
+	static final int VELOCIDAD_NIVEL_3 = 13;
 
 	//Create
 	@Override
@@ -75,7 +75,16 @@ public class theBucket extends ApplicationAdapter {
 		bucketX = 300;
 		bucketY = 10;
 		//positionGota
-		gotaY = 600;
+		for (int i = 0; i < gY.length; i++) {
+			if (i == 1){
+				gY[i] = 910 + 150;
+			} else {
+				gY[i] = 910;
+			}
+			for (int j = 0; j < gX.length; j++) {
+				gX[j] = random.nextInt(440);
+			}
+		}
 
 		//vidas
 		vidas = 5;
@@ -112,56 +121,76 @@ public class theBucket extends ApplicationAdapter {
 				bucketX -= 8;
 			}
 
-			//velocidad
-			gotaY -= 5;
-			if (puntuacion >= 3 || puntuacion >= 10){
-				gotaY -= 4;
+			for (int i = 0; i < gY.length; i ++){
+				//velocidad
+				if (puntuacion <= 5){
+					gY[i] -= VELOCIDAD_NIVEL_1;
+				} else if (puntuacion >= 5 && puntuacion < 10){
+					gY[i] -= VELOCIDAD_NIVEL_2;
+				} else if (puntuacion >= 10){
+					gY[i] -= VELOCIDAD_NIVEL_3;
+				}
+
+				//Comprobar SI la GOTA colisiona con el BUCKET
+				if (gY[i] <= bucketY + 58 && (gX[i] <= bucketX + 50 && gX[i] >= bucketX - 20)) {
+					System.out.println("HA TOCADO LA GOTA");
+					//Vuelve a la pos 800
+					gY[i] = 800;
+					gX[i] = random.nextInt(460);
+					puntuacion++;
+					dropWater.play();
+				}
+				// Si la gota SALE de la pantalla, VUELVE a la pos 800Y y restamos una vida.
+				if (gY[i] < -60) {
+					//Vuelve a la pos 800Y
+					gY[i] = 800;
+					gX[i] = random.nextInt(460);
+					//Restamos la vida + efecto de sonido
+					vidas--;
+					fallo.play();
+				} else if (vidas <= 0){
+					pantalla = 2;
+					fallo.stop();
+					gOver.play();
+				}
 			}
 
-			//Comprobar TOCADO(pruebas)
-			if (gotaY <= bucketY + 58 && (gotaX <= bucketX + 50 && gotaX >= bucketX - 20)) {
-				//pruebas
-				System.out.println("TOCADO");
-				System.out.println("esto es Gota : " + gotaX + "   " + gotaY);
-				System.out.println("esto es Bucket : " + bucketX + "   " + bucketY);
-				drawAgain();
-				puntuacion++;
-				chocado = true;
-				dropWater.play();
-			}
-
-			// Si la gota sale de la pantalla, vuelve a la pos 430Y y restamos una vida.
-			if (gotaY < -60) {
-				drawAgain();
-				vidas--;
-				fallo.play();
-			} else if (vidas == 0){
-				pantalla = 2;
-				fallo.stop();
-				gOver.play();
-			}
-
-			//Mantener el bucket dentro de los limites de la pantalla.
+			//Mantener el BUCKET dentro de los limites de la pantalla.
 			if (bucketX < 0){
 				bucketX = 0;
 			} else if (bucketX > 650 - 60){
 				bucketX = 650 - 60;
 			}
 
-			//dibujar
+			//Dibujar
 			batch.begin();
 			batch.draw(bucket, bucketX, bucketY);
-			batch.draw(gota, gotaX, gotaY);
+			for(int i = 0; i < gY.length; i++) {
+				batch.draw(gota, gX[i], gY[i]);
+			}
 			font.setColor(Color.WHITE);
 			font.draw(batch, "Score: " + Integer.toString(puntuacion), 280, 465);
 			if (vidas == 1){
+				font.setColor(Color.BLACK);
+				font.draw(batch, "NO TE QUEDAN MAS VIDAS", 170, 434);
 				font.setColor(Color.RED);
 				font.draw(batch, "NO TE QUEDAN MAS VIDAS", 170, 435);
 			} else {
 				font.draw(batch, "Vidas: " + Integer.toString(vidas), 280, 435);
 			}
+			if (puntuacion <= 6){
+				font.setColor(Color.GREEN);
+				font.draw(batch, "LEVEL 1", 500, 107);
+			} else if (puntuacion >= 6 & puntuacion < 10){
+				font.setColor(Color.ORANGE);
+				font.draw(batch, "LEVEL 2", 500, 107);
+			} else if (puntuacion >= 10){
+				font.setColor(Color.BLACK);
+				font.draw(batch, "EXPERT", 500, 106);
+				font.setColor(Color.RED);
+				font.draw(batch, "EXPERT", 500, 107);
+			}
 			batch.end();
-			veces++;
 
 		} else if (pantalla == 0){
 			//PantallaStart
@@ -190,9 +219,6 @@ public class theBucket extends ApplicationAdapter {
 			batch.end();
 		}
 	}
-	public void drawAgain(){
-		gotaY = 430;
-		gotaX = random.nextInt(400);
-	}
 }
+
 
